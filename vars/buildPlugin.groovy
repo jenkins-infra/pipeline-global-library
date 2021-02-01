@@ -30,6 +30,12 @@ def call(Map params = [:]) {
         String javaLevel = config.javaLevel
 
         String stageIdentifier = "${label}-${jdk}${jenkinsVersion ? '-' + jenkinsVersion : ''}"
+
+        if ("windows".equals(label) && "true".equals(env.PIPELINE_LIBRARY_SKIP_WINDOWS)) {
+            echo "Skipping ${stageIdentifier}, because `PIPELINE_LIBRARY_SKIP_WINDOWS` environment variable is set"
+            return;
+        }
+
         boolean first = tasks.size() == 1
         boolean skipTests = params?.tests?.skip
         boolean addToolEnv = !useAci
@@ -81,13 +87,17 @@ def call(Map params = [:]) {
                                 m2repo = "${pwd tmp: true}/m2repo"
                                 List<String> mavenOptions = [
                                         '--update-snapshots',
-                                        "-Dmaven.repo.local=$m2repo",
                                         '-Dmaven.test.failure.ignore',
                                         '-Dspotbugs.failOnError=false',
                                         '-Dcheckstyle.failOnViolation=false',
                                         '-Dcheckstyle.failsOnError=false',
                                         '-Penable-jacoco'
                                 ]
+                                if ("true".equals(env.PIPELINE_LIBRARY_USE_DEFAULT_MAVEN_REPO)) {
+                                    echo "Using the default Maven local repo, because 'PIPELINE_LIBRARY_USE_DEFAULT_MAVEN_REPO' is set"
+                                } else {
+                                    mavenOptions += "-Dmaven.repo.local=$m2repo"
+                                }
                                 if (incrementals) { // set changelist and activate produce-incrementals profile
                                     mavenOptions += '-Dset.changelist'
                                     if (doArchiveArtifacts) { // ask Maven for the value of -rc999.abc123def456
